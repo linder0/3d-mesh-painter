@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Calendar, FileText, Star, Save, Download, MapPin, AlertCircle, Heart } from 'lucide-react';
+import { User, Calendar, FileText, Star, Download, MapPin, AlertCircle, Heart } from 'lucide-react';
 import { MeshData, PainAssessment } from '../types';
 
 interface PainAssessmentPanelProps {
@@ -16,31 +16,6 @@ const PainAssessmentPanel: React.FC<PainAssessmentPanelProps> = ({
   const [notes, setNotes] = useState('');
 
   const markedCount = meshData?.paintedVertices.size || 0;
-
-  const saveAssessment = () => {
-    if (!meshData || markedCount === 0) return;
-
-    const assessment: PainAssessment = {
-      id: Date.now().toString(),
-      patientName: patientName.trim() || undefined,
-      date: new Date(),
-      meshFileName: fileName,
-      painAreas: Array.from(meshData.paintedVertices.keys()).map((vertexIndex) => ({
-        index: vertexIndex,
-        painLevelId: 'problem-area',
-        timestamp: new Date()
-      })),
-      notes: notes.trim() || undefined,
-      overallPainScore: overallDiscomfortScore
-    };
-
-    // Save to localStorage for demo purposes
-    const savedAssessments = JSON.parse(localStorage.getItem('painAssessments') || '[]');
-    savedAssessments.push(assessment);
-    localStorage.setItem('painAssessments', JSON.stringify(savedAssessments));
-
-    alert('Problem area assessment saved successfully!');
-  };
 
   const exportAssessment = () => {
     if (!meshData || markedCount === 0) return;
@@ -217,13 +192,6 @@ The more specific anatomical and clinical detail you provide, the better we can 
       {/* Actions */}
       {markedCount > 0 ? (
         <div className="space-y-2">
-          <button
-            onClick={saveAssessment}
-            className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
-          >
-            <Save className="w-4 h-4" />
-            Save Assessment
-          </button>
           <button
             onClick={exportAssessment}
             className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
