@@ -29,3 +29,31 @@ export interface BrushSettings {
   strength: number;
   falloff: 'linear' | 'smooth' | 'constant';
 }
+
+// Pain Assessment Types
+export interface PainArea {
+  index: number;
+  painLevelId: string;
+  position: Vector3;
+  timestamp: Date;
+}
+
+export interface PainAssessment {
+  id: string;
+  patientName?: string;
+  date: Date;
+  meshFileName: string;
+  painAreas: PainArea[];
+  notes?: string;
+  overallPainScore: number;
+}
+
+export interface LabeledPoint {
+  id: string;
+  label: string;
+  position: Vector3;
+  normal?: Vector3;
+}
+
+// Application Mode
+export type AppMode = 'mesh-labeling' | 'pain-assessment';

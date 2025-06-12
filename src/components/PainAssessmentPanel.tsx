@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Calendar, FileText, Star, Save, Download, MapPin, AlertCircle } from 'lucide-react';
+import { User, Calendar, FileText, Star, Save, Download, MapPin, AlertCircle, Heart } from 'lucide-react';
 import { MeshData, PainAssessment } from '../types';
 
 interface PainAssessmentPanelProps {
@@ -25,11 +25,11 @@ const PainAssessmentPanel: React.FC<PainAssessmentPanelProps> = ({
       patientName: patientName.trim() || undefined,
       date: new Date(),
       meshFileName: fileName,
-      painAreas: Array.from(meshData.paintedVertices).map((vertexIndex) => {
+      painAreas: Array.from(meshData.paintedVertices.keys()).map((vertexIndex) => {
         const positions = meshData.geometry.attributes.position;
         return {
           index: vertexIndex,
-          painLevelId: 'problem-area', // Single level for problem areas
+          painLevelId: 'problem-area',
           position: {
             x: positions.getX(vertexIndex),
             y: positions.getY(vertexIndex),
@@ -62,7 +62,7 @@ const PainAssessmentPanel: React.FC<PainAssessmentPanelProps> = ({
         overallDiscomfortScore: overallDiscomfortScore,
         notes: notes.trim() || undefined
       },
-      problemAreas: Array.from(meshData.paintedVertices).map((vertexIndex) => {
+      problemAreas: Array.from(meshData.paintedVertices.keys()).map((vertexIndex) => {
         const positions = meshData.geometry.attributes.position;
         return {
           vertexIndex,
@@ -89,8 +89,8 @@ const PainAssessmentPanel: React.FC<PainAssessmentPanelProps> = ({
   return (
     <div className="p-6">
       <div className="flex items-center gap-2 mb-4">
-        <FileText className="w-5 h-5 text-blue-600" />
-        <h3 className="text-lg font-semibold text-gray-900">Assessment Report</h3>
+        <Heart className="w-5 h-5 text-red-600" />
+        <h3 className="text-lg font-semibold text-gray-900">Pain Assessment</h3>
       </div>
 
       {/* Patient Information */}
@@ -105,7 +105,7 @@ const PainAssessmentPanel: React.FC<PainAssessmentPanelProps> = ({
             value={patientName}
             onChange={(e) => setPatientName(e.target.value)}
             placeholder="Enter patient name..."
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-sm"
           />
         </div>
 
@@ -134,9 +134,9 @@ const PainAssessmentPanel: React.FC<PainAssessmentPanelProps> = ({
               max="10"
               value={overallDiscomfortScore}
               onChange={(e) => setOverallDiscomfortScore(parseInt(e.target.value))}
-              className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+              className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
             />
-            <span className="text-lg font-bold text-gray-900 w-8">{overallDiscomfortScore}</span>
+            <span className="text-lg font-bold text-red-600 w-8">{overallDiscomfortScore}</span>
           </div>
           <div className="flex justify-between text-xs text-gray-500 mt-1">
             <span>No Discomfort</span>
@@ -227,7 +227,7 @@ The more specific anatomical and clinical detail you provide, the better we can 
         <div className="space-y-2">
           <button
             onClick={saveAssessment}
-            className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+            className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
           >
             <Save className="w-4 h-4" />
             Save Assessment
