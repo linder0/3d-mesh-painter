@@ -79,6 +79,17 @@ function App() {
 
   const currentLabelClasses = appMode === 'mesh-labeling' ? labelClasses : [painClass];
 
+  // Get painted vertices count based on current mode
+  const getPaintedVerticesCount = () => {
+    if (!meshDataState) return 0;
+    
+    if (appMode === 'mesh-labeling') {
+      return meshDataState.meshLabelVertices?.size || 0;
+    } else {
+      return meshDataState.painAreaVertices?.size || 0;
+    }
+  };
+
   const resetAll = () => {
     setMeshData(null);
     setFileName('');
@@ -94,8 +105,15 @@ function App() {
       const clearedMeshData = {
         ...meshDataState,
         vertexColors: new Float32Array(meshDataState.originalColors),
-        paintedVertices: new Map()
       };
+
+      // Clear the appropriate vertex map based on current mode
+      if (appMode === 'mesh-labeling') {
+        clearedMeshData.meshLabelVertices = new Map();
+      } else {
+        clearedMeshData.painAreaVertices = new Map();
+      }
+
       setMeshDataState(clearedMeshData);
     }
   };
@@ -243,7 +261,7 @@ function App() {
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">Tools</h3>
               <span className="text-sm text-gray-500">
-                {meshDataState?.paintedVertices.size || 0} {appMode === 'mesh-labeling' ? 'vertices painted' : 'areas marked'}
+                {getPaintedVerticesCount()} {appMode === 'mesh-labeling' ? 'vertices painted' : 'areas marked'}
               </span>
             </div>
             
@@ -297,7 +315,7 @@ function App() {
             <div className="flex gap-2">
               <button
                 onClick={clearLabels}
-                disabled={!meshDataState?.paintedVertices.size}
+                disabled={!getPaintedVerticesCount()}
                 className="flex-1 px-3 py-2 bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50 disabled:text-gray-400 text-gray-700 rounded-lg text-sm font-medium transition-colors"
               >
                 Clear {appMode === 'mesh-labeling' ? 'Labels' : 'Areas'}
@@ -396,6 +414,8 @@ function App() {
               labelClasses={currentLabelClasses}
               onMeshDataChange={setMeshDataState}
               isErasing={isErasing}
+              appMode={appMode}
+              painClass={painClass}
             />
           </Canvas>
         ) : (
