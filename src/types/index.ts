@@ -21,7 +21,8 @@ export interface MeshData {
   geometry: THREE.BufferGeometry;
   vertexColors: Float32Array;
   originalColors: Float32Array;
-  paintedVertices: Map<number, string>; // vertex index -> class id
+  meshLabelVertices: Map<number, string>; // vertex index -> class id for mesh labels
+  painAreaVertices: Map<number, string>; // vertex index -> class id for pain areas
 }
 
 export interface BrushSettings {
