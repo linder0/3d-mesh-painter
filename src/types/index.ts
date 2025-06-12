@@ -34,7 +34,6 @@ export interface BrushSettings {
 export interface PainArea {
   index: number;
   painLevelId: string;
-  position: Vector3;
   timestamp: Date;
 }
 

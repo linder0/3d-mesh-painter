@@ -25,19 +25,11 @@ const PainAssessmentPanel: React.FC<PainAssessmentPanelProps> = ({
       patientName: patientName.trim() || undefined,
       date: new Date(),
       meshFileName: fileName,
-      painAreas: Array.from(meshData.paintedVertices.keys()).map((vertexIndex) => {
-        const positions = meshData.geometry.attributes.position;
-        return {
-          index: vertexIndex,
-          painLevelId: 'problem-area',
-          position: {
-            x: positions.getX(vertexIndex),
-            y: positions.getY(vertexIndex),
-            z: positions.getZ(vertexIndex)
-          },
-          timestamp: new Date()
-        };
-      }),
+      painAreas: Array.from(meshData.paintedVertices.keys()).map((vertexIndex) => ({
+        index: vertexIndex,
+        painLevelId: 'problem-area',
+        timestamp: new Date()
+      })),
       notes: notes.trim() || undefined,
       overallPainScore: overallDiscomfortScore
     };
