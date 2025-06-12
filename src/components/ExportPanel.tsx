@@ -10,11 +10,11 @@ interface ExportPanelProps {
 
 const ExportPanel: React.FC<ExportPanelProps> = ({ meshData, labelClasses, fileName }) => {
   const exportLabels = (format: 'json' | 'csv') => {
-    if (!meshData || meshData.meshLabelVertices.size === 0) return;
+    if (!meshData || meshData.paintedVertices.size === 0) return;
 
     const exportData: any[] = [];
     
-    meshData.meshLabelVertices.forEach((classId, vertexIndex) => {
+    meshData.paintedVertices.forEach((classId, vertexIndex) => {
       const labelClass = labelClasses.find(cls => cls.id === classId);
       if (!labelClass) return;
 
@@ -114,7 +114,7 @@ end_header
     URL.revokeObjectURL(url);
   };
 
-  const labeledCount = meshData?.meshLabelVertices.size || 0;
+  const labeledCount = meshData?.paintedVertices.size || 0;
 
   if (labeledCount === 0) {
     return (

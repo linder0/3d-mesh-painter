@@ -2,41 +2,36 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
-import { LabelClass, BrushSettings, MeshData, AppMode } from '../types';
+import { LabelClass, BrushSettings, MeshData } from '../types';
 import { loadMeshFromFile, initializeVertexColors, hexToRgb, getVerticesInRadius, calculateBrushStrength } from '../utils/meshUtils';
 
 interface MeshPainterProps {
   meshData: ArrayBuffer;
   fileName: string;
-  isPaintModeActive: boolean;
+  isPainting: boolean;
   activeClass: LabelClass | null;
   brushSettings: BrushSettings;
   labelClasses: LabelClass[];
   onMeshDataChange: (meshData: MeshData) => void;
-  isEraseModeActive: boolean;
-  appMode: AppMode;
-  painClass?: LabelClass;
+  isErasing?: boolean;
 }
 
 const MeshPainter: React.FC<MeshPainterProps> = ({
   meshData,
   fileName,
-  isPaintModeActive,
+  isPainting,
   activeClass,
   brushSettings,
   labelClasses,
   onMeshDataChange,
-  isEraseModeActive,
-  appMode,
-  painClass
+  isErasing = false
 }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const { camera, raycaster, gl } = useThree();
   const [geometry, setGeometry] = useState<THREE.BufferGeometry | null>(null);
   const [vertexColors, setVertexColors] = useState<Float32Array | null>(null);
   const [originalColors, setOriginalColors] = useState<Float32Array | null>(null);
-  const [meshLabelVertices, setMeshLabelVertices] = useState<Map<number, string>>(new Map());
-  const [painAreaVertices, setPainAreaVertices] = useState<Map<number, string>>(new Map());
+  const [paintedVertices, setPaintedVertices] = useState<Map<number, string>>(new Map());
   const [isLoading, setIsLoading] = useState(true);
   const [isMouseDown, setIsMouseDown] = useState(false);
   const [isRightMouseDown, setIsRightMouseDown] = useState(false);
@@ -56,8 +51,7 @@ const MeshPainter: React.FC<MeshPainterProps> = ({
         setGeometry(loadedGeometry);
         setVertexColors(colors);
         setOriginalColors(new Float32Array(colors));
-        setMeshLabelVertices(new Map());
-        setPainAreaVertices(new Map());
+        setPaintedVertices(new Map());
         setIsLoading(false);
 
         // Notify parent of mesh data
@@ -65,8 +59,7 @@ const MeshPainter: React.FC<MeshPainterProps> = ({
           geometry: loadedGeometry,
           vertexColors: colors,
           originalColors: new Float32Array(colors),
-          meshLabelVertices: new Map(),
-          painAreaVertices: new Map()
+          paintedVertices: new Map()
         });
       } catch (error) {
         console.error('Error loading mesh:', error);
@@ -77,28 +70,16 @@ const MeshPainter: React.FC<MeshPainterProps> = ({
     loadMesh();
   }, [meshData, fileName, onMeshDataChange]);
 
-  // Update vertex colors when classes change or vertices are painted
+  // Update vertex colors when classes change
   useEffect(() => {
     if (!geometry || !vertexColors || !originalColors) return;
 
     const newColors = new Float32Array(originalColors);
     
-    // First apply mesh label colors
-    meshLabelVertices.forEach((classId, vertexIndex) => {
+    paintedVertices.forEach((classId, vertexIndex) => {
       const labelClass = labelClasses.find(cls => cls.id === classId);
       if (labelClass && labelClass.visible) {
         const rgb = hexToRgb(labelClass.color);
-        const colorIndex = vertexIndex * 3;
-        newColors[colorIndex] = rgb.r;
-        newColors[colorIndex + 1] = rgb.g;
-        newColors[colorIndex + 2] = rgb.b;
-      }
-    });
-
-    // Then apply pain area colors (with precedence over mesh labels)
-    painAreaVertices.forEach((classId, vertexIndex) => {
-      if (painClass && painClass.visible) {
-        const rgb = hexToRgb(painClass.color);
         const colorIndex = vertexIndex * 3;
         newColors[colorIndex] = rgb.r;
         newColors[colorIndex + 1] = rgb.g;
@@ -115,7 +96,7 @@ const MeshPainter: React.FC<MeshPainterProps> = ({
         colorAttribute.needsUpdate = true;
       }
     }
-  }, [labelClasses, meshLabelVertices, painAreaVertices, geometry, originalColors, painClass]);
+  }, [labelClasses, paintedVertices, geometry, originalColors]);
 
   // Mouse tracking with right-click detection
   useEffect(() => {
@@ -144,7 +125,7 @@ const MeshPainter: React.FC<MeshPainterProps> = ({
     };
 
     const handleContextMenu = (event: MouseEvent) => {
-      if (isPaintModeActive || isEraseModeActive) {
+      if (isPainting) {
         event.preventDefault(); // Prevent context menu when painting
       }
     };
@@ -161,7 +142,7 @@ const MeshPainter: React.FC<MeshPainterProps> = ({
       canvas.removeEventListener('mouseup', handleMouseUp);
       canvas.removeEventListener('contextmenu', handleContextMenu);
     };
-  }, [gl, isPaintModeActive, isEraseModeActive]);
+  }, [gl, isPainting]);
 
   // Painting/Erasing logic
   const paintAtPoint = useCallback((intersectionPoint: THREE.Vector3, shouldErase: boolean = false) => {
@@ -169,11 +150,9 @@ const MeshPainter: React.FC<MeshPainterProps> = ({
     if (!shouldErase && !activeClass) return;
 
     const affectedVertices = getVerticesInRadius(geometry, intersectionPoint, brushSettings.size);
-    
-    // Determine which map to modify based on app mode
-    const currentMeshLabelVertices = new Map(meshLabelVertices);
-    const currentPainAreaVertices = new Map(painAreaVertices);
-    
+    const newPaintedVertices = new Map(paintedVertices);
+    const newColors = new Float32Array(vertexColors);
+
     affectedVertices.forEach(vertexIndex => {
       const positions = geometry.attributes.position;
       const vertex = new THREE.Vector3();
@@ -183,42 +162,63 @@ const MeshPainter: React.FC<MeshPainterProps> = ({
       const strength = calculateBrushStrength(distance, brushSettings.size, brushSettings.falloff, brushSettings.strength);
       
       if (strength > 0) {
+        const colorIndex = vertexIndex * 3;
+        
         if (shouldErase) {
-          // Erase: remove from the appropriate map based on app mode
-          if (appMode === 'mesh-labeling') {
-            currentMeshLabelVertices.delete(vertexIndex);
-          } else {
-            currentPainAreaVertices.delete(vertexIndex);
-          }
+          // Erase: remove from painted vertices and restore original color
+          newPaintedVertices.delete(vertexIndex);
+          
+          // Blend back to original color
+          const originalR = originalColors[colorIndex];
+          const originalG = originalColors[colorIndex + 1];
+          const originalB = originalColors[colorIndex + 2];
+          const currentR = newColors[colorIndex];
+          const currentG = newColors[colorIndex + 1];
+          const currentB = newColors[colorIndex + 2];
+          
+          newColors[colorIndex] = currentR + (originalR - currentR) * strength;
+          newColors[colorIndex + 1] = currentG + (originalG - currentG) * strength;
+          newColors[colorIndex + 2] = currentB + (originalB - currentB) * strength;
         } else if (activeClass) {
-          // Paint: add to the appropriate map based on app mode
-          if (appMode === 'mesh-labeling') {
-            currentMeshLabelVertices.set(vertexIndex, activeClass.id);
-          } else {
-            currentPainAreaVertices.set(vertexIndex, activeClass.id);
-          }
+          // Paint: add to painted vertices and apply class color
+          newPaintedVertices.set(vertexIndex, activeClass.id);
+          
+          const rgb = hexToRgb(activeClass.color);
+          const currentR = newColors[colorIndex];
+          const currentG = newColors[colorIndex + 1];
+          const currentB = newColors[colorIndex + 2];
+          
+          newColors[colorIndex] = currentR + (rgb.r - currentR) * strength;
+          newColors[colorIndex + 1] = currentG + (rgb.g - currentG) * strength;
+          newColors[colorIndex + 2] = currentB + (rgb.b - currentB) * strength;
         }
       }
     });
 
-    // Update the state
-    setMeshLabelVertices(currentMeshLabelVertices);
-    setPainAreaVertices(currentPainAreaVertices);
+    setPaintedVertices(newPaintedVertices);
+    setVertexColors(newColors);
 
-    // Update parent with the new mesh data
+    // Update mesh colors
+    if (meshRef.current) {
+      const colorAttribute = meshRef.current.geometry.attributes.color;
+      if (colorAttribute) {
+        colorAttribute.array = newColors;
+        colorAttribute.needsUpdate = true;
+      }
+    }
+
+    // Update parent
     onMeshDataChange({
       geometry,
-      vertexColors: vertexColors!,
+      vertexColors: newColors,
       originalColors: originalColors!,
-      meshLabelVertices: currentMeshLabelVertices,
-      painAreaVertices: currentPainAreaVertices
+      paintedVertices: newPaintedVertices
     });
-  }, [geometry, vertexColors, originalColors, activeClass, brushSettings, meshLabelVertices, painAreaVertices, appMode, onMeshDataChange]);
+  }, [geometry, vertexColors, originalColors, activeClass, brushSettings, paintedVertices, onMeshDataChange]);
 
   // Handle painting/erasing on mouse move
   useFrame(() => {
-    if (!(isPaintModeActive || isEraseModeActive) || !meshRef.current) return;
-    if (!isMouseDown || isRightMouseDown) return; // Don't paint when right mouse is down
+    if (!isPainting || (!isMouseDown && !isRightMouseDown) || !meshRef.current) return;
 
     raycaster.setFromCamera(mouseRef.current, camera);
     const intersects = raycaster.intersectObject(meshRef.current);
@@ -228,7 +228,7 @@ const MeshPainter: React.FC<MeshPainterProps> = ({
       
       // Continuous painting/erasing - only paint if we've moved enough
       if (!lastPaintPoint.current || lastPaintPoint.current.distanceTo(intersectionPoint) > brushSettings.size * 0.1) {
-        const shouldErase = isEraseModeActive;
+        const shouldErase = isRightMouseDown || isErasing;
         paintAtPoint(intersectionPoint, shouldErase);
         lastPaintPoint.current = intersectionPoint.clone();
       }
@@ -238,8 +238,8 @@ const MeshPainter: React.FC<MeshPainterProps> = ({
   // Update cursor
   useEffect(() => {
     const canvas = gl.domElement;
-    if (isPaintModeActive || isEraseModeActive) {
-      if (isEraseModeActive) {
+    if (isPainting) {
+      if (isErasing) {
         canvas.style.cursor = 'not-allowed';
       } else if (activeClass) {
         canvas.style.cursor = 'crosshair';
@@ -253,7 +253,7 @@ const MeshPainter: React.FC<MeshPainterProps> = ({
     return () => {
       canvas.style.cursor = 'default';
     };
-  }, [isPaintModeActive, isEraseModeActive, activeClass, gl]);
+  }, [isPainting, activeClass, isErasing, gl]);
 
   // Add vertex colors to geometry
   useEffect(() => {
@@ -269,7 +269,7 @@ const MeshPainter: React.FC<MeshPainterProps> = ({
         enablePan={true}
         enableZoom={true}
         enableRotate={true}
-        enabled={!isPaintModeActive && !isEraseModeActive || isRightMouseDown} // Allow rotation when right mouse is down or not painting
+        enabled={!isPainting || isRightMouseDown} // Allow rotation when right mouse is down
         makeDefault
       />
       
@@ -299,11 +299,11 @@ const MeshPainter: React.FC<MeshPainterProps> = ({
       )}
       
       {/* Brush preview */}
-      {(isPaintModeActive || isEraseModeActive) && (activeClass || isEraseModeActive) && (
+      {isPainting && (activeClass || isErasing) && (
         <mesh position={[0, 2.5, 0]}>
           <ringGeometry args={[brushSettings.size * 0.9, brushSettings.size, 32]} />
           <meshBasicMaterial 
-            color={isEraseModeActive ? "#EF4444" : (activeClass?.color || "#666666")} 
+            color={isErasing ? "#EF4444" : (activeClass?.color || "#666666")} 
             transparent 
             opacity={0.3}
             side={THREE.DoubleSide}
