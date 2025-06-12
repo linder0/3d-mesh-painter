@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Upload, Play, Square, RotateCcw, Eraser, Palette, Heart, ArrowRight, ArrowLeft } from 'lucide-react';
 import MeshPainter from './components/MeshPainter';
@@ -33,6 +33,28 @@ function App() {
     strength: 0.8,
     falloff: 'smooth'
   });
+
+  // Keyboard event handler for P key
+  useEffect(() => {
+    const handleKeyPress = (event: KeyboardEvent) => {
+      // Only toggle if we have mesh data and the key is 'p' or 'P'
+      if (meshData && (event.key === 'p' || event.key === 'P')) {
+        // Prevent default behavior and don't trigger if user is typing in an input
+        const target = event.target as HTMLElement;
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+          return;
+        }
+        
+        event.preventDefault();
+        togglePaintMode();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => {
+      window.removeEventListener('keydown', handleKeyPress);
+    };
+  }, [meshData, isPainting, isErasing]);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -301,6 +323,7 @@ function App() {
               <ul className={`text-xs space-y-1 ${
                 appMode === 'mesh-labeling' ? 'text-blue-700' : 'text-red-700'
               }`}>
+                <li>• <strong>P key:</strong> Toggle paint mode on/off</li>
                 <li>• Left click: {appMode === 'mesh-labeling' ? 'Paint/Erase' : 'Mark/Erase areas'}</li>
                 <li>• Right click + drag: Rotate view</li>
                 <li>• Scroll: Zoom in/out</li>
